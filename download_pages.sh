@@ -3,5 +3,5 @@
 filename=$1
 while read -r line
 do 
-    wget "https://commoncrawl.s3.amazonaws.com/$line"
+    wget -P pages/ "https://commoncrawl.s3.amazonaws.com/$line"
 done < "$filename"
