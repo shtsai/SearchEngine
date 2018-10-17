@@ -1,3 +1,7 @@
 /pages
 
-/.idea
+.idea/
+
+posting*.txt
+term_table.txt
+page_table.txt
