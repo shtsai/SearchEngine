@@ -3,7 +3,7 @@
 .idea/
 
 posting*.txt
-term_table.txt
-page_table.txt
+term_table*.txt
+page_table*.txt
 inverted_list.txt
 lexicon.txt
