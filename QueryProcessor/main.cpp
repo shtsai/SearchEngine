@@ -19,17 +19,35 @@ int main(){
   // unordered_map<string, int> termTable = loadTermTable("term_table.txt");
 
   // read lexicon into memory
-  unordered_map<int, LexiconEntry*> lexicon = loadLexicon("lexicon.txt");
+  // unordered_map<int, LexiconEntry*> lexicon = loadLexicon("lexicon");
 
   // Test map
-  while (true) {
-    string line;
-    getline(cin, line);
-    int v = stoi(line);
-    LexiconEntry *le = lexicon[v];
-    if (le) {
-      LexiconEntry e = *le;
-      cout << e.toString() << endl;
-    }
+  // while (true) {
+  //   string line;
+  //   getline(cin, line);
+  //   if (termTable.count(line)) {
+  //     int tid = termTable[line];
+  //     LexiconEntry e = *lexicon[tid];
+  //     cout << e.toString() << endl;
+  //   } else {
+  //     cout << "Not found" << endl;
+  //   }
+  // }
+
+  ifstream inf ("inverted_list", ios::binary);
+  vector<pair<int, int> > res = readBlock(inf);
+  for (int i = 0; i < res.size(); i++) {
+    pair<int, int> q = res[i];
+    cout << q.first << " + " << q.second << endl;
+  }
+  res = readBlock(inf);
+  for (int i = 0; i < res.size(); i++) {
+    pair<int, int> q = res[i];
+    cout << q.first << " + " << q.second << endl;
+  }
+  res = readBlock(inf);
+  for (int i = 0; i < res.size(); i++) {
+    pair<int, int> q = res[i];
+    cout << q.first << " + " << q.second << endl;
   }
 }
