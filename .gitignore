@@ -3,8 +3,9 @@
 
 .idea/
 
-posting*.txt
-term_table*.txt
-page_table*.txt
-inverted_list.txt
-lexicon.txt
+page_length*
+posting*
+term_table*
+page_table*
+inverted_list
+lexicon
