@@ -17,6 +17,7 @@ public class Worker extends Thread {
     private int fileIndex;
     private int curCount;
     private PrintWriter postingWriter;
+    private PrintWriter lengthWriter;
 
     public Worker(ReaderManager rm, int wid, int postingSize) {
         super();
@@ -29,6 +30,7 @@ public class Worker extends Thread {
         try {
             termIdWriter = new PrintWriter("term_table" + this.wid + ".txt", "utf-8");
             postingWriter = new PrintWriter("posting-" + this.wid + "-" + this.fileIndex + ".txt", "utf-8");
+            lengthWriter = new PrintWriter("page_length-" + this.wid + ".txt", "utf-8");
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -57,11 +59,15 @@ public class Worker extends Thread {
             }
 
             System.out.println("processing doc " + docId);
-            String[] words = html.split("\\W+");
+//            String[] words = html.split("\\W+");
+            String[] words = html.split("[\\p{Punct}\\s]+");
+            int wordCount = 0;
 
             HashMap<Integer, Integer> freq = new HashMap<>();
             for (String w : words) {
                 if (isAscii(w)) {
+                    wordCount++;
+                    w = w.toLowerCase();
                     Integer tid = null;
                     while (tid == null) {
                         tid = getTermId(w);
@@ -74,6 +80,7 @@ public class Worker extends Thread {
                 res.add(new Posting(ti, docId, freq.get(ti)));
             }
 
+            // write postings in chunks
             if (res.size() >= postingSize) {
                 Collections.sort(res);
                 for (Posting po : res) {
@@ -88,6 +95,9 @@ public class Worker extends Thread {
                     e.printStackTrace();
                 }
             }
+
+            // write page length to file
+            lengthWriter.println(docId + "," + wordCount);
         }
 
         // Process last chunk
