@@ -1,7 +1,7 @@
-#include <string>
-
 #ifndef LEXICONENTRY_H
 #define LEXICONENTRY_H
+
+#include <string>
 
 class LexiconEntry
 {

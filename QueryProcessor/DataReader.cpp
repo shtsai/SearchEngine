@@ -4,24 +4,45 @@
 
 using namespace std;
 
-unordered_map<int, string> loadPageTable(string filename) {
+unordered_map<int, Page> loadPageTable(string pageTableFilename, string pageLengthFilename, int &avgLength) {
   string line;
   string delimiter = ",";
+  long pageCount = 0;
+  long totalLength = 0;
 
-  ifstream pageTableFile(filename);
-  unordered_map<int, string> pageTable;
-  if (pageTableFile.is_open())
-  {
-    while (getline(pageTableFile, line))
-    {
+  ifstream pageTableFile(pageTableFilename);
+  unordered_map<int, Page> pageTable;
+  if (pageTableFile.is_open()) {
+    while (getline(pageTableFile, line)) {
       int comma = line.find(delimiter);
       int id = stoi(line.substr(0, comma));
       string url = line.substr(comma + 1);
-      pageTable[id] = url;
+      pageTable[id] = { url, 0 };
     };
     pageTableFile.close();
-    cout << "Page table loaded\n";
   }
+
+  ifstream pageLengthFile(pageLengthFilename);
+  if (pageLengthFile.is_open()) {
+    while (getline(pageLengthFile, line)) {
+      try {
+        int comma = line.find(delimiter);
+        int id = stoi(line.substr(0, comma));
+        int length = stoi(line.substr(comma + 1));
+        pageTable[id].length = length;
+        totalLength += length;
+        pageCount++;
+      } catch (invalid_argument e) {
+        continue;
+      }
+    }
+    pageLengthFile.close();
+  }
+
+  // compute average length
+  avgLength = static_cast<int>(totalLength / pageCount);
+
+  cout << "Page table loaded" << endl;
   return pageTable;
 }
 
@@ -72,22 +93,33 @@ unordered_map<int, LexiconEntry*> loadLexicon(string filename) {
 }
 
 // Search for the given entry in the inverted list
-// vector<Posting> search(LexiconEntry* entry, string filename) {
-//   LexiconEntry e = *entry;
-//   int termId = e.getTermId();
-//   int blockId = e.getBlockId();
-//   int offset = e.getOffset();
-//   int length = e.getLength();
-//
-//   ifstream inf(filename);
-//   if (!inf) {
-//     cout << "Fail to open inverted list" << endl;
-//   } else {
-//     for (int i = 0; i < blockId; i++) {
-//       // TODO read inverted list
-//     }
-//   }
-// }
+set<Posting, PostingComparator> search(LexiconEntry *entry, ifstream &inf) {
+  LexiconEntry e = *entry;
+  int termId = e.getTermId();
+  int blockPosition = e.getBlockPosition();
+  int offset = e.getOffset();
+  int length = e.getLength();
+
+  // load all postings for the given entry
+  inf.seekg(blockPosition);
+  set<Posting, PostingComparator> postings;
+  bool firstBlock = true;
+  while (length > 0) {
+    vector<pair<int, int> > block = readBlock(inf);
+    int i;
+    if (firstBlock) {
+      i = offset;
+      firstBlock = false;
+    } else {
+      i = 0;
+    }
+    for (; i < block.size() && length > 0; i++) {
+      postings.insert({ block[i].first, block[i].second });
+      length--;
+    }
+  }
+  return postings;
+}
 
 pair<int, int> readLength(ifstream &inf) {
   bool end = false;
@@ -139,26 +171,6 @@ vector<pair<int, int> > readBlock(ifstream &inf) {
   return res;
 }
 
-int readCompressedBlock(char chars[], int start, int count, vector<int> &res) {
-  while (count > 0) {
-    bool end = false;
-    int value = 0;
-    char c;
-    while (!end) {
-      c = chars[start];
-      start++;
-      int v = (int) c & 0x7f;
-      value = value * 128 + v;
-      if ((c & 0x80) == 0) {
-        end = true;
-      }
-    }
-    res.push_back(value);
-    count--;
-  }
-  return start;
-}
-
 vector<pair<int, int> > combineDocIdFreq(vector<int> &docIds, vector<int> &freqs) {
   vector<pair<int, int> > res;
   int prev = 0;
@@ -168,3 +180,18 @@ vector<pair<int, int> > combineDocIdFreq(vector<int> &docIds, vector<int> &freqs
   }
   return res;
 }
+
+// vector<Page> getTop20(vector<Posting> postings, vector<string> keywords, const unordered_map<int, Page> &pageTable, int N, int davg) {
+//   const float k1 = 1.2;
+//   const float b = 0.75;
+//   unordered_map<int, float> scores;
+//   for (string t : keywords) {
+//     for (Posting p : postings) {
+//       int docId = p.docId;
+//       int fdt = p.freq;
+//       int d = pageTable[docId].length;
+//       float K = k1 * ((1 - b) + b * d / davg);
+//
+//     }
+//   }
+// }

@@ -1,53 +1,60 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <fstream>
+#include <unordered_map>
+#include <utility>
+#include <bitset>
+
 #include "LexiconEntry.h"
 #include "DataReader.h"
 
 using namespace std;
 
 int main(){
-  // string query;
-  // cout << "Please enter your query: ";
-  // getline(cin, query);
-  // cout << "Your query is " << query << "\n";
-
   string line;
   string delimiter = ",";
 
   // read page table into memory
-  // unordered_map<int, string> pageTable = loadPageTable("page_table.txt");
+  int avgLength;
+  unordered_map<int, Page> pageTable = loadPageTable("page_table.txt", "page_length.txt", avgLength);
+  int totalPageCount = pageTable.size();
 
   // read term table into memory
   // unordered_map<string, int> termTable = loadTermTable("term_table.txt");
 
   // read lexicon into memory
-  // unordered_map<int, LexiconEntry*> lexicon = loadLexicon("lexicon");
+  unordered_map<int, LexiconEntry*> lexicon = loadLexicon("lexicon");
 
-  // Test map
+  // open inverted list
+  ifstream invertedList ("inverted_list", ios::binary);
+
+  vector<string> keywords {"comment" , "by"};
+  vector<Page> top20 = getTop20(keywords, invertedList, pageTable, termTable, totalPageCount, avgLength);
+  for (Page p : top20) {
+    cout << p.url << " + " << p.score << endl;
+  }
+
   // while (true) {
   //   string line;
   //   getline(cin, line);
-  //   if (termTable.count(line)) {
-  //     int tid = termTable[line];
-  //     LexiconEntry e = *lexicon[tid];
-  //     cout << e.toString() << endl;
+  //   int tid = stoi(line);
+  //   // if (termTable.count(line)) {
+  //   if (lexicon.count(tid)) {
+  //     // int tid = termTable[line];
+  //     LexiconEntry *e = lexicon[tid];
+  //     set<Posting, PostingComparator> postings = search(e, invertedList);
+  //     for (auto p : postings) {
+  //       cout << p.docId << " + " << p.freq << endl;
+  //     }
+  //     // cout << (*e).toString() << " + " << postings.size() << endl;
+  //     // vector<string> keywords {"comment"};
+  //     // vector<Page> top20 = getTop20(postings, keywords, pageTable, totalPageCount, avgLength);
+  //     // for (Page p : top20) {
+  //     //   cout << p.url << " + " << p.score << endl;
+  //     // }
   //   } else {
-  //     cout << "Not found" << endl;
+  //     cout << "Not found: " << tid << endl;
   //   }
   // }
-
-  ifstream inf ("inverted_list", ios::binary);
-  vector<pair<int, int> > res = readBlock(inf);
-  for (int i = 0; i < res.size(); i++) {
-    pair<int, int> q = res[i];
-    cout << q.first << " + " << q.second << endl;
-  }
-  res = readBlock(inf);
-  for (int i = 0; i < res.size(); i++) {
-    pair<int, int> q = res[i];
-    cout << q.first << " + " << q.second << endl;
-  }
-  res = readBlock(inf);
-  for (int i = 0; i < res.size(); i++) {
-    pair<int, int> q = res[i];
-    cout << q.first << " + " << q.second << endl;
-  }
 }
