@@ -21,7 +21,7 @@ int main(){
   int totalPageCount = pageTable.size();
 
   // read term table into memory
-  // unordered_map<string, int> termTable = loadTermTable("term_table.txt");
+  unordered_map<string, int> termTable = loadTermTable("term_table.txt");
 
   // read lexicon into memory
   unordered_map<int, LexiconEntry*> lexicon = loadLexicon("lexicon");
@@ -30,10 +30,12 @@ int main(){
   ifstream invertedList ("inverted_list", ios::binary);
 
   vector<string> keywords {"comment" , "by"};
-  vector<Page> top20 = getTop20(keywords, invertedList, pageTable, termTable, totalPageCount, avgLength);
-  for (Page p : top20) {
-    cout << p.url << " + " << p.score << endl;
+  unordered_map<int, float> andResult = getANDResult(keywords, invertedList, pageTable, termTable, lexicon, totalPageCount, avgLength);
+  vector<pair<int, float> > top20 = getTop20(andResult);
+  for (auto &p : top20) {
+    cout << p.first << " + " << p.second << endl;
   }
+  showQueryResult(top20, pageTable);
 
   // while (true) {
   //   string line;
