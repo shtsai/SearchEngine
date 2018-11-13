@@ -4,6 +4,7 @@
 #include <climits>
 #include <cmath>
 #include <queue>
+#include <unordered_set>
 
 using namespace std;
 
@@ -95,7 +96,7 @@ unordered_map<int, LexiconEntry*> loadLexicon(string filename) {
   return lexicon;
 }
 
-// Search for the given entry in the inverted list
+// Retrieve postings for the given entry in the inverted list
 map<int, Posting> getPostings(LexiconEntry *entry, ifstream &inf) {
   LexiconEntry e = *entry;
   int termId = e.getTermId();
@@ -124,6 +125,7 @@ map<int, Posting> getPostings(LexiconEntry *entry, ifstream &inf) {
   return postings;
 }
 
+// Read the first few bytes of an compressed block to get block length
 pair<int, int> readLength(ifstream &inf) {
   bool end = false;
   int sizeLength = 0;
@@ -144,6 +146,7 @@ pair<int, int> readLength(ifstream &inf) {
   return make_pair(sizeLength, value);
 }
 
+// Read a block of inverted index
 vector<pair<int, int> > readBlock(ifstream &inf) {
   pair<int, int> lengthPair = readLength(inf);
   int sizeLength = lengthPair.first;
@@ -174,6 +177,7 @@ vector<pair<int, int> > readBlock(ifstream &inf) {
   return res;
 }
 
+// Zip docId and freq into a pair
 vector<pair<int, int> > combineDocIdFreq(vector<int> &docIds, vector<int> &freqs) {
   vector<pair<int, int> > res;
   int prev = 0;
@@ -202,6 +206,7 @@ int getFreq(map<int, Posting> list, int key) {
   }
 }
 
+// Process AND query and compute BM25 scores
 unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invertedList, unordered_map<int, Page> &pageTable,
                          unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
                          int totalPage, int avgLength) {
@@ -232,7 +237,7 @@ unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invert
   while (did <= totalPage) {
     did = nextGEQ(lp[0], did);
     // see if you find entries with same docId in the other lists
-    int d;
+    int d = did;
     for (int i = 1; (i < lp.size()) && ((d = nextGEQ(lp[i], did)) == did); i++);
     if (d > did) {     // not in intersection
       did = d;
@@ -241,7 +246,6 @@ unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invert
       for (int i = 0; i < lp.size(); i++) {
         int freq = getFreq(lp[i], did);
         int docLength = pageTable[did].length;
-        // float bm25 = computeBM25(totalPage, (*lp[i]).size(), freq, docLength, avgLength, k1, b);
         float bm25 = computeBM25(totalPage, lp[i].size(), freq, docLength, avgLength, k1, b);
         auto it = scores.find(did);
         if (it == scores.end()) {
@@ -256,11 +260,56 @@ unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invert
   return scores;
 }
 
+// Process OR query and compute BM25 scores
+unordered_map<int, float> getORResult(vector<string> keywords, ifstream &invertedList, unordered_map<int, Page> &pageTable,
+                                      unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
+                                      int totalPage, int avgLength) {
+  unordered_map<int, float> scores;
+
+  // get all postings lists
+  vector<map<int, Posting>> lp;
+  for (string keyword : keywords) {
+    auto termId = termTable.find(keyword);
+    if (termId == termTable.end()) {   // cannot find keyword, continue searching next word
+      cout << "WARN: cannot find termId for '" << keyword << "'" << endl;
+      continue;
+    }
+    auto le = lexicon.find(termId->second);
+    if (le == lexicon.end()) {    // cannot find lexicon entry for the termId, continue search next word
+      cout << "WARN: cannot find lexicon entry for termId '" << termId->second << "'" << endl;
+      continue;
+    }
+    map<int, Posting> postings = getPostings(le->second, invertedList);
+    lp.push_back(postings);
+  }
+
+  const float k1 = 1.2;
+  const float b = 0.75;
+
+  // compute BM25 scores
+  for (int i = 0; i < lp.size(); i++) {
+    for (auto &it : lp[i]) {
+      int docId = it.first;
+      int freq = it.second.freq;
+      int docLength = pageTable[docId].length;
+      float bm25 = computeBM25(totalPage, lp[i].size(), freq, docLength, avgLength, k1, b);
+      auto score = scores.find(docId);
+      if (score == scores.end()) {
+        scores.insert({ docId, bm25 });
+      } else {
+        score->second = score->second + bm25;
+      }
+    }
+  }
+  return scores;
+}
+
 float computeBM25(int N, int ft, int fdt, int d, int davg, float k1, float b) {
   float K = k1 * ((1 - b) + b * d / davg);
   return log(((N - ft + 0.5) / (ft + 0.5)) * ((k1 + 1) * fdt / (K + fdt)));
 }
 
+// Sort the scores and return top 20 results
 vector<pair<int, float> > getTop20(unordered_map<int, float> scores) {
   auto comp = []( pair<float, int> a, pair<float, int> b ) { return a.first > b.first ; };
   priority_queue<pair<float, int>, vector<pair<float, int> >, decltype(comp)> pq (comp);
@@ -279,9 +328,30 @@ vector<pair<int, float> > getTop20(unordered_map<int, float> scores) {
     pq.pop();
   }
   return res;
-
 }
 
+unordered_map<int, float> mergeResults(unordered_map<int, float> ANDResult, unordered_map<int, float> ORResult) {
+  unordered_map<int, float> res;
+  for (auto &it : ANDResult) {
+    auto e = res.find(it.first);
+    if (e == res.end()) {
+      res.insert( {it.first, it.second} );
+    } else {
+      e->second = e->second + it.second;
+    }
+  }
+  for (auto &it : ORResult) {
+    auto e = res.find(it.first);
+    if (e == res.end()) {
+      res.insert( {it.first, it.second} );
+    } else {
+      e->second = e->second + it.second;
+    }
+  }
+  return res;
+}
+
+// Display given query results
 void showQueryResult(vector<pair<int, float> > results, unordered_map<int, Page> &pageTable) {
   cout << "DocID   Score    URL" << endl;
   for (const pair<int, float> &result : results) {

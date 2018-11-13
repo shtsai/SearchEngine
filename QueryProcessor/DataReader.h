@@ -37,8 +37,12 @@ map<int, Posting> getPostings(LexiconEntry *entry, ifstream &inf);
 vector<pair<int, int> > readBlock(ifstream &inf);
 vector<pair<int, int> > combineDocIdFreq(vector<int> &docIds, vector<int> &freqs);
 unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invertedList, unordered_map<int, Page> &pageTable,
-                         unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
-                         int totalPage, int avgLength);
+                                       unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
+                                       int totalPage, int avgLength);
+unordered_map<int, float> getORResult(vector<string> keywords, ifstream &invertedList, unordered_map<int, Page> &pageTable,
+                                      unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
+                                      int totalPage, int avgLength);
+unordered_map<int, float> mergeResults(unordered_map<int, float> ANDResult, unordered_map<int, float> ORResult); 
 int nextGEQ(map<int, Posting> list, int key);
 int getFreq(map<int, Posting> list, int key);
 float computeBM25(int N, int ft, int fdt, int d, int davg, float k1, float b);
