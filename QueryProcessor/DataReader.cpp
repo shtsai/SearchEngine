@@ -5,8 +5,15 @@
 #include <cmath>
 #include <queue>
 #include <unordered_set>
+#include <chrono>
 
 using namespace std;
+
+void showTimeElapsed(chrono::time_point<chrono::system_clock> startTime) {
+  auto endTime = chrono::system_clock::now();
+  chrono::duration<double> diff = endTime - startTime;
+  cout << "Time elapsed: " << diff.count() * 1000 << " ms\n";
+}
 
 unordered_map<int, Page> loadPageTable(string pageTableFilename, string pageLengthFilename, int &avgLength) {
   string line;
@@ -97,7 +104,7 @@ unordered_map<int, LexiconEntry*> loadLexicon(string filename) {
 }
 
 // Retrieve postings for the given entry in the inverted list
-map<int, Posting> getPostings(LexiconEntry *entry, ifstream &inf) {
+vector<Posting> getPostings(LexiconEntry *entry, ifstream &inf) {
   LexiconEntry e = *entry;
   int termId = e.getTermId();
   int blockPosition = e.getBlockPosition();
@@ -106,10 +113,11 @@ map<int, Posting> getPostings(LexiconEntry *entry, ifstream &inf) {
 
   // load all postings for the given entry
   inf.seekg(blockPosition);
-  map<int, Posting> postings;
+  vector<Posting> postings;
   bool firstBlock = true;
   while (length > 0) {
     vector<pair<int, int> > block = readBlock(inf);
+    int prev = 0;
     int i;
     if (firstBlock) {
       i = offset;
@@ -118,7 +126,8 @@ map<int, Posting> getPostings(LexiconEntry *entry, ifstream &inf) {
       i = 0;
     }
     for (; i < block.size() && length > 0; i++) {
-      postings.insert({ block[i].first, { block[i].first, block[i].second }});
+      prev += block[i].first;
+      postings.push_back({ prev, block[i].second });
       length--;
     }
   }
@@ -133,8 +142,6 @@ pair<int, int> readLength(ifstream &inf) {
   char c;
   while (!end) {
     inf.get(c);
-    // bitset<8> x(c);
-    // cout << x << " ";
     int v = (int) c & 0x7f;
     value = value * 128 + v;
     if ((c & 0x80) == 0) {
@@ -142,7 +149,6 @@ pair<int, int> readLength(ifstream &inf) {
     }
     sizeLength++;
   }
-  // cout << endl;
   return make_pair(sizeLength, value);
 }
 
@@ -157,8 +163,6 @@ vector<pair<int, int> > readBlock(ifstream &inf) {
   char c;
   int value = 0;
   while (blockSize > 0 && inf.get(c)) {
-    // bitset<8> x(c);
-    // cout << x << " ";
     int v = (int) c & 0x7f;
     value = value * 128 + v;
     if ((c & 0x80) == 0) {  // reach end of a compressed value
@@ -171,8 +175,6 @@ vector<pair<int, int> > readBlock(ifstream &inf) {
     }
     blockSize--;
   }
-  // cout << endl;
-
   vector<pair<int, int> > res = combineDocIdFreq(docIds, freqs);
   return res;
 }
@@ -180,29 +182,50 @@ vector<pair<int, int> > readBlock(ifstream &inf) {
 // Zip docId and freq into a pair
 vector<pair<int, int> > combineDocIdFreq(vector<int> &docIds, vector<int> &freqs) {
   vector<pair<int, int> > res;
-  int prev = 0;
   for (int i = 0; i < docIds.size(); i++) {
-    prev += docIds[i];
-    res.push_back(make_pair(prev, freqs[i]));
+    res.push_back(make_pair(docIds[i], freqs[i]));
   }
   return res;
 }
 
-int nextGEQ(map<int, Posting> list, int key) {
-  auto it = list.lower_bound(key);
-  if (it == list.end()) {
-    return INT_MAX;
+int nextGEQ(vector<Posting> list, int key) {
+  int left = 0;
+  int right = list.size() - 1;
+  while (left + 1 < right) {
+    int mid = left + (right - left) / 2;
+    if (list[mid].docId >= key) {
+      right = mid;
+    } else {
+      left = mid;
+    }
+  }
+  if (list[left].docId >= key) {
+    return list[left].docId;
   } else {
-    return it->first;
+    return list[left+1].docId;
   }
 }
 
-int getFreq(map<int, Posting> list, int key) {
-  auto it = list.find(key);
-  if (it == list.end()) {
-    return 0;
+int getFreq(vector<Posting> list, int key) {
+  int left = 0;
+  int right = list.size() - 1;
+  while (left + 1 < right) {
+    int mid = left + (right - left) / 2;
+    if (list[mid].docId == key) {
+      return list[mid].freq;
+    } else if (list[mid].docId > key) {
+      right = mid - 1;
+    } else {
+      left = mid + 1;
+    }
+  }
+
+  if (list[left].docId == key) {
+    return list[left].freq;
+  } else if (list[left + 1].docId == key){
+    return list[left + 1].freq;
   } else {
-    return (it->second).freq;
+    return 0;
   }
 }
 
@@ -211,9 +234,12 @@ unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invert
                          unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
                          int totalPage, int avgLength) {
   unordered_map<int, float> scores;
+  if (keywords.size() == 0) {
+    return scores;
+  }
 
   // get all postings lists
-  vector<map<int, Posting>> lp;
+  vector<vector<Posting> > lp;
   for (string keyword : keywords) {
     auto termId = termTable.find(keyword);
     if (termId == termTable.end()) {   // cannot find keyword, return empty vector
@@ -225,7 +251,7 @@ unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invert
       cout << "WARN: cannot find lexicon entry for termId '" << termId->second << "'" << endl;
       return scores;
     }
-    map<int, Posting> postings = getPostings(le->second, invertedList);
+    vector<Posting> postings = getPostings(le->second, invertedList);
     lp.push_back(postings);
   }
 
@@ -265,9 +291,12 @@ unordered_map<int, float> getORResult(vector<string> keywords, ifstream &inverte
                                       unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
                                       int totalPage, int avgLength) {
   unordered_map<int, float> scores;
+  if (keywords.size() == 0) {
+    return scores;
+  }
 
   // get all postings lists
-  vector<map<int, Posting>> lp;
+  vector<vector<Posting>> lp;
   for (string keyword : keywords) {
     auto termId = termTable.find(keyword);
     if (termId == termTable.end()) {   // cannot find keyword, continue searching next word
@@ -279,7 +308,7 @@ unordered_map<int, float> getORResult(vector<string> keywords, ifstream &inverte
       cout << "WARN: cannot find lexicon entry for termId '" << termId->second << "'" << endl;
       continue;
     }
-    map<int, Posting> postings = getPostings(le->second, invertedList);
+    vector<Posting> postings = getPostings(le->second, invertedList);
     lp.push_back(postings);
   }
 
@@ -289,8 +318,8 @@ unordered_map<int, float> getORResult(vector<string> keywords, ifstream &inverte
   // compute BM25 scores
   for (int i = 0; i < lp.size(); i++) {
     for (auto &it : lp[i]) {
-      int docId = it.first;
-      int freq = it.second.freq;
+      int docId = it.docId;
+      int freq = it.freq;
       int docLength = pageTable[docId].length;
       float bm25 = computeBM25(totalPage, lp[i].size(), freq, docLength, avgLength, k1, b);
       auto score = scores.find(docId);

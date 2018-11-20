@@ -25,9 +25,7 @@ int main(){
   unordered_map<string, int> termTable = loadTermTable("term_table.txt");
   unordered_map<int, LexiconEntry*> lexicon = loadLexicon("lexicon");
   ifstream invertedList ("inverted_list", ios::binary);
-  auto loadEndTime = chrono::system_clock::now();
-  chrono::duration<double> loadDiff = loadEndTime - loadStartTime;
-  cout << "Time to load is " << loadDiff.count() << " s\n";
+  showTimeElapsed(loadStartTime);
 
   while (true) {
     // get user inputs
@@ -35,21 +33,15 @@ int main(){
     vector<string> ORkeywords = getORKeywords();
     cout << "Processing your query ..." << endl;
 
-    auto queryStartTime = chrono::system_clock::now();
-    cout << "here0" << endl;
+    auto t1 = chrono::system_clock::now();
     unordered_map<int, float> andResult = getANDResult(ANDkeywords, invertedList, pageTable, termTable, lexicon, totalPageCount, avgLength);
-    cout << "here1" << endl;
+    showTimeElapsed(t1);
+    auto t2 = chrono::system_clock::now();
     unordered_map<int, float> orResult = getORResult(ORkeywords, invertedList, pageTable, termTable, lexicon, totalPageCount, avgLength);
-    cout << "here2" << endl;
+    showTimeElapsed(t2);
     unordered_map<int, float> mergedResult = mergeResults(andResult, orResult);
-    cout << "here3" << endl;
     vector<pair<int, float> > top20 = getTop20(mergedResult);
-    cout << "here4" << endl;
     showQueryResult(top20, pageTable);
-    cout << "here5" << endl;
-    auto queryEndTime= chrono::system_clock::now();
-    chrono::duration<double> queryDiff = queryEndTime - queryStartTime;
-    cout << "Time to query is " << queryDiff.count() << " s\n";
   }
 
 }
