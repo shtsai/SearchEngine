@@ -8,34 +8,36 @@ import java.io.UnsupportedEncodingException;
 
 public class Page {
     private int docId;
-    private String url;
-    private WarcRecord record;
+//    private String url;
+//    private WarcRecord record;
     private String html;
 
     public Page(int docId, String url, WarcRecord record) {
         this.docId = docId;
-        this.url = url;
-        this.record = record;
-        this.html = parseHtml();
+//        this.url = url;
+//        this.record = record;
+//        this.html = parseHtml();
+        this.html = parseHtml(record);
     }
 
     public int getDocId() {
         return docId;
     }
 
-    public String getUrl() {
-        return url;
-    }
-
-    public WarcRecord getRecord() {
-        return record;
-    }
+//    public String getUrl() {
+//        return url;
+//    }
+//
+//    public WarcRecord getRecord() {
+//        return record;
+//    }
 
     public String getHtml() {
         return html;
     }
 
-    private String parseHtml() {
+//    private String parseHtml() {
+    private String parseHtml(WarcRecord record) {
         String res = null;
         try {
             InputStream is = record.getPayloadContent();

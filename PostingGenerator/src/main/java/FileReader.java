@@ -53,11 +53,7 @@ public class FileReader extends Thread {
 
                 int index = 0;
                 while ((record = reader.getNextRecord()) != null) {
-                    // Only second record contains html content
                     index++;
-//                if (index % 3 != 0) {
-//                    continue;
-//                }
 
                     String url = record.header.warcTargetUriStr;
                     if (url == null) {
