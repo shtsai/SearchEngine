@@ -1,4 +1,3 @@
-#include "DataReader.h"
 #include <iostream>
 #include <bitset>
 #include <climits>
@@ -6,6 +5,8 @@
 #include <queue>
 #include <unordered_set>
 #include <chrono>
+#include "DataReader.h"
+#include "PostingList.h"
 
 using namespace std;
 
@@ -18,8 +19,8 @@ void showTimeElapsed(chrono::time_point<chrono::system_clock> startTime) {
 unordered_map<int, Page> loadPageTable(string pageTableFilename, string pageLengthFilename, int &avgLength) {
   string line;
   string delimiter = ",";
-  long pageCount = 0;
-  long totalLength = 0;
+  long long pageCount = 0;
+  double avg = 0.0;
 
   ifstream pageTableFile(pageTableFilename);
   unordered_map<int, Page> pageTable;
@@ -41,8 +42,8 @@ unordered_map<int, Page> loadPageTable(string pageTableFilename, string pageLeng
         int id = stoi(line.substr(0, comma));
         int length = stoi(line.substr(comma + 1));
         pageTable[id].length = length;
-        totalLength += length;
         pageCount++;
+        avg += (length - avg) / pageCount;
       } catch (invalid_argument e) {
         continue;
       }
@@ -51,9 +52,8 @@ unordered_map<int, Page> loadPageTable(string pageTableFilename, string pageLeng
   }
 
   // compute average length
-  avgLength = static_cast<int>(totalLength / pageCount);
-
-  cout << "Page table loaded" << endl;
+  avgLength = static_cast<int>(avg);
+  cout << "Page table loaded, avgLength = " << avgLength << endl;
   return pageTable;
 }
 
@@ -104,142 +104,142 @@ unordered_map<int, LexiconEntry*> loadLexicon(string filename) {
 }
 
 // Retrieve postings for the given entry in the inverted list
-vector<Posting> getPostings(LexiconEntry *entry, ifstream &inf) {
-  LexiconEntry e = *entry;
-  int termId = e.getTermId();
-  int blockPosition = e.getBlockPosition();
-  int offset = e.getOffset();
-  int length = e.getLength();
-
-  // load all postings for the given entry
-  inf.seekg(blockPosition);
-  vector<Posting> postings;
-  bool firstBlock = true;
-  while (length > 0) {
-    vector<pair<int, int> > block = readBlock(inf);
-    int prev = 0;
-    int i;
-    if (firstBlock) {
-      i = offset;
-      firstBlock = false;
-    } else {
-      i = 0;
-    }
-    for (; i < block.size() && length > 0; i++) {
-      prev += block[i].first;
-      postings.push_back({ prev, block[i].second });
-      length--;
-    }
-  }
-  return postings;
-}
+// vector<Posting> getPostings(LexiconEntry *entry, ifstream &inf) {
+//   LexiconEntry e = *entry;
+//   int termId = e.getTermId();
+//   int blockPosition = e.getBlockPosition();
+//   int offset = e.getOffset();
+//   int length = e.getLength();
+//
+//   // load all postings for the given entry
+//   inf.seekg(blockPosition);
+//   vector<Posting> postings;
+//   bool firstBlock = true;
+//   while (length > 0) {
+//     vector<pair<int, int> > block = readBlock(inf);
+//     int prev = 0;
+//     int i;
+//     if (firstBlock) {
+//       i = offset;
+//       firstBlock = false;
+//     } else {
+//       i = 0;
+//     }
+//     for (; i < block.size() && length > 0; i++) {
+//       prev += block[i].first;
+//       postings.push_back({ prev, block[i].second });
+//       length--;
+//     }
+//   }
+//   return postings;
+// }
 
 // Read the first few bytes of an compressed block to get block length
-pair<int, int> readLength(ifstream &inf) {
-  bool end = false;
-  int sizeLength = 0;
-  int value = 0;
-  char c;
-  while (!end) {
-    inf.get(c);
-    int v = (int) c & 0x7f;
-    value = value * 128 + v;
-    if ((c & 0x80) == 0) {
-      end = true;
-    }
-    sizeLength++;
-  }
-  return make_pair(sizeLength, value);
-}
+// pair<int, int> readLength(ifstream &inf) {
+//   bool end = false;
+//   int sizeLength = 0;
+//   int value = 0;
+//   char c;
+//   while (!end) {
+//     inf.get(c);
+//     int v = (int) c & 0x7f;
+//     value = value * 128 + v;
+//     if ((c & 0x80) == 0) {
+//       end = true;
+//     }
+//     sizeLength++;
+//   }
+//   return make_pair(sizeLength, value);
+// }
 
 // Read a block of inverted index
-vector<pair<int, int> > readBlock(ifstream &inf) {
-  pair<int, int> lengthPair = readLength(inf);
-  int sizeLength = lengthPair.first;
-  int blockSize = lengthPair.second;
-
-  vector<int> docIds;
-  vector<int> freqs;
-  char c;
-  int value = 0;
-  while (blockSize > 0 && inf.get(c)) {
-    int v = (int) c & 0x7f;
-    value = value * 128 + v;
-    if ((c & 0x80) == 0) {  // reach end of a compressed value
-      if (docIds.size() < 128) {
-        docIds.push_back(value);
-      } else {
-        freqs.push_back(value);
-      }
-      value = 0;
-    }
-    blockSize--;
-  }
-  vector<pair<int, int> > res = combineDocIdFreq(docIds, freqs);
-  return res;
-}
+// vector<pair<int, int> > readBlock(ifstream &inf) {
+//   pair<int, int> lengthPair = readLength(inf);
+//   int sizeLength = lengthPair.first;
+//   int blockSize = lengthPair.second;
+//
+//   vector<int> docIds;
+//   vector<int> freqs;
+//   char c;
+//   int value = 0;
+//   while (blockSize > 0 && inf.get(c)) {
+//     int v = (int) c & 0x7f;
+//     value = value * 128 + v;
+//     if ((c & 0x80) == 0) {  // reach end of a compressed value
+//       if (docIds.size() < 128) {
+//         docIds.push_back(value);
+//       } else {
+//         freqs.push_back(value);
+//       }
+//       value = 0;
+//     }
+//     blockSize--;
+//   }
+//   vector<pair<int, int> > res = combineDocIdFreq(docIds, freqs);
+//   return res;
+// }
 
 // Zip docId and freq into a pair
-vector<pair<int, int> > combineDocIdFreq(vector<int> &docIds, vector<int> &freqs) {
-  vector<pair<int, int> > res;
-  for (int i = 0; i < docIds.size(); i++) {
-    res.push_back(make_pair(docIds[i], freqs[i]));
-  }
-  return res;
-}
+// vector<pair<int, int> > combineDocIdFreq(vector<int> &docIds, vector<int> &freqs) {
+//   vector<pair<int, int> > res;
+//   for (int i = 0; i < docIds.size(); i++) {
+//     res.push_back(make_pair(docIds[i], freqs[i]));
+//   }
+//   return res;
+// }
 
-int nextGEQ(vector<Posting> list, int key) {
-  int left = 0;
-  int right = list.size() - 1;
-  while (left + 1 < right) {
-    int mid = left + (right - left) / 2;
-    if (list[mid].docId >= key) {
-      right = mid;
-    } else {
-      left = mid;
-    }
-  }
-  if (list[left].docId >= key) {
-    return list[left].docId;
-  } else {
-    return list[left+1].docId;
-  }
-}
+// inline int nextGEQ(vector<Posting> list, int key) {
+//   int left = 0;
+//   int right = list.size() - 1;
+//   while (left + 1 < right) {
+//     int mid = left + (right - left) / 2;
+//     if (list[mid].docId >= key) {
+//       right = mid;
+//     } else {
+//       left = mid;
+//     }
+//   }
+//   if (list[left].docId >= key) {
+//     return list[left].docId;
+//   } else {
+//     return list[left+1].docId;
+//   }
+// }
 
-int getFreq(vector<Posting> list, int key) {
-  int left = 0;
-  int right = list.size() - 1;
-  while (left + 1 < right) {
-    int mid = left + (right - left) / 2;
-    if (list[mid].docId == key) {
-      return list[mid].freq;
-    } else if (list[mid].docId > key) {
-      right = mid - 1;
-    } else {
-      left = mid + 1;
-    }
-  }
-
-  if (list[left].docId == key) {
-    return list[left].freq;
-  } else if (list[left + 1].docId == key){
-    return list[left + 1].freq;
-  } else {
-    return 0;
-  }
-}
-
+// inline int getFreq(vector<Posting> list, int key) {
+//   int left = 0;
+//   int right = list.size() - 1;
+//   while (left + 1 < right) {
+//     int mid = left + (right - left) / 2;
+//     if (list[mid].docId == key) {
+//       return list[mid].freq;
+//     } else if (list[mid].docId > key) {
+//       right = mid - 1;
+//     } else {
+//       left = mid + 1;
+//     }
+//   }
+//
+//   if (list[left].docId == key) {
+//     return list[left].freq;
+//   } else if (list[left + 1].docId == key){
+//     return list[left + 1].freq;
+//   } else {
+//     return 0;
+//   }
+// }
+//
 // Process AND query and compute BM25 scores
 unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invertedList, unordered_map<int, Page> &pageTable,
                          unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
-                         int totalPage, int avgLength) {
+                         long long totalPage, int avgLength) {
   unordered_map<int, float> scores;
   if (keywords.size() == 0) {
     return scores;
   }
 
   // get all postings lists
-  vector<vector<Posting> > lp;
+  vector<PostingList> lp;
   for (string keyword : keywords) {
     auto termId = termTable.find(keyword);
     if (termId == termTable.end()) {   // cannot find keyword, return empty vector
@@ -251,7 +251,7 @@ unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invert
       cout << "WARN: cannot find lexicon entry for termId '" << termId->second << "'" << endl;
       return scores;
     }
-    vector<Posting> postings = getPostings(le->second, invertedList);
+    PostingList postings(invertedList, le->second, totalPage);
     lp.push_back(postings);
   }
 
@@ -261,16 +261,16 @@ unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invert
   // DAAT AND processing
   int did = 0;
   while (did <= totalPage) {
-    did = nextGEQ(lp[0], did);
+    did = lp[0].nextGEQ(did);
     // see if you find entries with same docId in the other lists
     int d = did;
-    for (int i = 1; (i < lp.size()) && ((d = nextGEQ(lp[i], did)) == did); i++);
+    for (int i = 1; (i < lp.size()) && ((d = lp[i].nextGEQ(did)) == did); i++);
     if (d > did) {     // not in intersection
       did = d;
     } else {    // docId is in intersection, now get all frequencies
       // compute BM25 scores
       for (int i = 0; i < lp.size(); i++) {
-        int freq = getFreq(lp[i], did);
+        int freq = lp[i].getFreq(did);
         int docLength = pageTable[did].length;
         float bm25 = computeBM25(totalPage, lp[i].size(), freq, docLength, avgLength, k1, b);
         auto it = scores.find(did);
@@ -283,20 +283,21 @@ unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invert
       did++;
     }
   }
+  cout << "Find " << scores.size() << " matching results" << endl;
   return scores;
 }
 
 // Process OR query and compute BM25 scores
 unordered_map<int, float> getORResult(vector<string> keywords, ifstream &invertedList, unordered_map<int, Page> &pageTable,
                                       unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
-                                      int totalPage, int avgLength) {
+                                      long long totalPage, int avgLength) {
   unordered_map<int, float> scores;
   if (keywords.size() == 0) {
     return scores;
   }
 
   // get all postings lists
-  vector<vector<Posting>> lp;
+  vector<PostingList> lp;
   for (string keyword : keywords) {
     auto termId = termTable.find(keyword);
     if (termId == termTable.end()) {   // cannot find keyword, continue searching next word
@@ -308,7 +309,7 @@ unordered_map<int, float> getORResult(vector<string> keywords, ifstream &inverte
       cout << "WARN: cannot find lexicon entry for termId '" << termId->second << "'" << endl;
       continue;
     }
-    vector<Posting> postings = getPostings(le->second, invertedList);
+    PostingList postings (invertedList, le->second, totalPage);
     lp.push_back(postings);
   }
 
@@ -317,7 +318,7 @@ unordered_map<int, float> getORResult(vector<string> keywords, ifstream &inverte
 
   // compute BM25 scores
   for (int i = 0; i < lp.size(); i++) {
-    for (auto &it : lp[i]) {
+    for (auto &it : lp[i].m_postings) {
       int docId = it.docId;
       int freq = it.freq;
       int docLength = pageTable[docId].length;
@@ -330,10 +331,11 @@ unordered_map<int, float> getORResult(vector<string> keywords, ifstream &inverte
       }
     }
   }
+  cout << "Find " << scores.size() << " matching results" << endl;
   return scores;
 }
 
-float computeBM25(int N, int ft, int fdt, int d, int davg, float k1, float b) {
+float computeBM25(long long N, int ft, int fdt, int d, int davg, float k1, float b) {
   float K = k1 * ((1 - b) + b * d / davg);
   return log(((N - ft + 0.5) / (ft + 0.5)) * ((k1 + 1) * fdt / (K + fdt)));
 }

@@ -3,8 +3,7 @@
 
 #include <string>
 
-class LexiconEntry
-{
+class LexiconEntry {
   private:
     int termId;
     int blockPosition;

@@ -20,9 +20,9 @@ int main(){
   // load data into memory
   auto loadStartTime = chrono::system_clock::now();
   int avgLength;
-  unordered_map<int, Page> pageTable = loadPageTable("page_table.txt", "page_length.txt", avgLength);
-  int totalPageCount = pageTable.size();
-  unordered_map<string, int> termTable = loadTermTable("term_table.txt");
+  unordered_map<int, Page> pageTable = loadPageTable("page_table", "page_length", avgLength);
+  long long totalPageCount = pageTable.size();
+  unordered_map<string, int> termTable = loadTermTable("term_table");
   unordered_map<int, LexiconEntry*> lexicon = loadLexicon("lexicon");
   ifstream invertedList ("inverted_list", ios::binary);
   showTimeElapsed(loadStartTime);
