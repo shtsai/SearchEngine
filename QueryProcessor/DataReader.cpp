@@ -7,6 +7,7 @@
 #include <chrono>
 #include "DataReader.h"
 #include "PostingList.h"
+#include "Config.h"
 
 using namespace std;
 
@@ -103,132 +104,37 @@ unordered_map<int, LexiconEntry*> loadLexicon(string filename) {
   return lexicon;
 }
 
-// Retrieve postings for the given entry in the inverted list
-// vector<Posting> getPostings(LexiconEntry *entry, ifstream &inf) {
-//   LexiconEntry e = *entry;
-//   int termId = e.getTermId();
-//   int blockPosition = e.getBlockPosition();
-//   int offset = e.getOffset();
-//   int length = e.getLength();
-//
-//   // load all postings for the given entry
-//   inf.seekg(blockPosition);
-//   vector<Posting> postings;
-//   bool firstBlock = true;
-//   while (length > 0) {
-//     vector<pair<int, int> > block = readBlock(inf);
-//     int prev = 0;
-//     int i;
-//     if (firstBlock) {
-//       i = offset;
-//       firstBlock = false;
-//     } else {
-//       i = 0;
-//     }
-//     for (; i < block.size() && length > 0; i++) {
-//       prev += block[i].first;
-//       postings.push_back({ prev, block[i].second });
-//       length--;
-//     }
-//   }
-//   return postings;
-// }
+unordered_map<int, DocEntry> loadDocTable(string filename) {
+  string line;
+  string delimiter = ",";
 
-// Read the first few bytes of an compressed block to get block length
-// pair<int, int> readLength(ifstream &inf) {
-//   bool end = false;
-//   int sizeLength = 0;
-//   int value = 0;
-//   char c;
-//   while (!end) {
-//     inf.get(c);
-//     int v = (int) c & 0x7f;
-//     value = value * 128 + v;
-//     if ((c & 0x80) == 0) {
-//       end = true;
-//     }
-//     sizeLength++;
-//   }
-//   return make_pair(sizeLength, value);
-// }
+  ifstream docTableFile (filename);
+  unordered_map<int, DocEntry> docTable;
+  if (docTableFile.is_open()) {
+    while (getline(docTableFile, line)) {
+      int start = 0;
+      vector<int> values;
+      try {
+        for (int i = 0; i < 4; i++) {
+          int comma = line.find(delimiter, start);
+          values.push_back(stoi(line.substr(start, comma)));
+          start = comma + 1;
+        }
+      } catch (invalid_argument& e) {
+        cout << "ERROR: stoi, " << e.what() << ",'" << line << "'" << endl;
+      }
+      int docId = values[0];
+      int wid = values[1];
+      int startPosition = values[2];
+      int length = values[3];
+      docTable[docId] = { wid, startPosition, length };
+    }
+    docTableFile.close();
+    cout << "Doc table loaded\n";
+  }
+  return docTable;
+}
 
-// Read a block of inverted index
-// vector<pair<int, int> > readBlock(ifstream &inf) {
-//   pair<int, int> lengthPair = readLength(inf);
-//   int sizeLength = lengthPair.first;
-//   int blockSize = lengthPair.second;
-//
-//   vector<int> docIds;
-//   vector<int> freqs;
-//   char c;
-//   int value = 0;
-//   while (blockSize > 0 && inf.get(c)) {
-//     int v = (int) c & 0x7f;
-//     value = value * 128 + v;
-//     if ((c & 0x80) == 0) {  // reach end of a compressed value
-//       if (docIds.size() < 128) {
-//         docIds.push_back(value);
-//       } else {
-//         freqs.push_back(value);
-//       }
-//       value = 0;
-//     }
-//     blockSize--;
-//   }
-//   vector<pair<int, int> > res = combineDocIdFreq(docIds, freqs);
-//   return res;
-// }
-
-// Zip docId and freq into a pair
-// vector<pair<int, int> > combineDocIdFreq(vector<int> &docIds, vector<int> &freqs) {
-//   vector<pair<int, int> > res;
-//   for (int i = 0; i < docIds.size(); i++) {
-//     res.push_back(make_pair(docIds[i], freqs[i]));
-//   }
-//   return res;
-// }
-
-// inline int nextGEQ(vector<Posting> list, int key) {
-//   int left = 0;
-//   int right = list.size() - 1;
-//   while (left + 1 < right) {
-//     int mid = left + (right - left) / 2;
-//     if (list[mid].docId >= key) {
-//       right = mid;
-//     } else {
-//       left = mid;
-//     }
-//   }
-//   if (list[left].docId >= key) {
-//     return list[left].docId;
-//   } else {
-//     return list[left+1].docId;
-//   }
-// }
-
-// inline int getFreq(vector<Posting> list, int key) {
-//   int left = 0;
-//   int right = list.size() - 1;
-//   while (left + 1 < right) {
-//     int mid = left + (right - left) / 2;
-//     if (list[mid].docId == key) {
-//       return list[mid].freq;
-//     } else if (list[mid].docId > key) {
-//       right = mid - 1;
-//     } else {
-//       left = mid + 1;
-//     }
-//   }
-//
-//   if (list[left].docId == key) {
-//     return list[left].freq;
-//   } else if (list[left + 1].docId == key){
-//     return list[left + 1].freq;
-//   } else {
-//     return 0;
-//   }
-// }
-//
 // Process AND query and compute BM25 scores
 unordered_map<int, float> getANDResult(vector<string> keywords, ifstream &invertedList, unordered_map<int, Page> &pageTable,
                          unordered_map<string, int> &termTable, unordered_map<int, LexiconEntry*> &lexicon,
@@ -383,12 +289,34 @@ unordered_map<int, float> mergeResults(unordered_map<int, float> ANDResult, unor
 }
 
 // Display given query results
-void showQueryResult(vector<pair<int, float> > results, unordered_map<int, Page> &pageTable) {
+void showQueryResult(vector<pair<int, float> > results, unordered_map<int, Page> &pageTable, unordered_map<int, DocEntry> &docTable) {
   cout << "DocID   Score    URL" << endl;
+  int i = 0;
   for (const pair<int, float> &result : results) {
     int docId = result.first;
     float score = result.second;
     Page p = pageTable[docId];
-    cout << docId << " " << score << " " << p.url << endl;
+    DocEntry docEntry = docTable[docId];
+    string snippet = getSnippet(docEntry);
+    cout << "|" << i << "|" << docId << " " << score << " " << p.url << endl;
+    cout << snippet << endl;
+    cout << "------------------------------------------------" << endl;
+    i++;
   }
+}
+
+// Generate snippet for the given docEntry
+string getSnippet(DocEntry &docEntry) {
+  int wid = docEntry.workerId;
+  int startPos = docEntry.startPos;
+  int length = docEntry.length;
+
+  ifstream docfile(DOC_FILE + to_string(wid) + ".txt");
+  docfile.seekg(startPos);
+  char *buffer = new char[length];
+  docfile.read(buffer, length);
+  string res(buffer);
+  docfile.close();
+  delete[] buffer;
+  return res;
 }

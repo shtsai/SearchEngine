@@ -10,6 +10,7 @@
 #include "LexiconEntry.h"
 #include "DataReader.h"
 #include "QueryParser.h"
+#include "Config.h"
 
 using namespace std;
 
@@ -20,11 +21,12 @@ int main(){
   // load data into memory
   auto loadStartTime = chrono::system_clock::now();
   int avgLength;
-  unordered_map<int, Page> pageTable = loadPageTable("page_table", "page_length", avgLength);
+  unordered_map<int, Page> pageTable = loadPageTable(PAGE_TABLE_FILE, PAGE_LENGTH_FILE, avgLength);
   long long totalPageCount = pageTable.size();
-  unordered_map<string, int> termTable = loadTermTable("term_table");
-  unordered_map<int, LexiconEntry*> lexicon = loadLexicon("lexicon");
-  ifstream invertedList ("inverted_list", ios::binary);
+  unordered_map<string, int> termTable = loadTermTable(TERM_TABLE_FILE);
+  unordered_map<int, LexiconEntry*> lexicon = loadLexicon(LEXICON_FILE);
+  unordered_map<int, DocEntry> docTable = loadDocTable(DOC_TABLE_FILE);
+  ifstream invertedList (INVERTED_LIST_FILE, ios::binary);
   showTimeElapsed(loadStartTime);
 
   while (true) {
@@ -41,7 +43,7 @@ int main(){
     showTimeElapsed(t2);
     unordered_map<int, float> mergedResult = mergeResults(andResult, orResult);
     vector<pair<int, float> > top20 = getTop20(mergedResult);
-    showQueryResult(top20, pageTable);
+    showQueryResult(top20, pageTable, docTable);
   }
 
 }
