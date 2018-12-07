@@ -4,7 +4,8 @@
 .idea/
 
 page_length*
-posting*
+posting-*
+posting*.txt
 term_table*
 page_table*
 inverted_list

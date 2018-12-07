@@ -16,8 +16,11 @@ public class Worker extends Thread {
     private int postingSize;
     private int fileIndex;
     private int curCount;
+    private int curPosition;
     private PrintWriter postingWriter;
     private PrintWriter lengthWriter;
+    private PrintWriter docWriter;
+    private PrintWriter docTableWriter;
 
     public Worker(ReaderManager rm, int wid, int postingSize) {
         super();
@@ -27,10 +30,13 @@ public class Worker extends Thread {
         this.postingSize = postingSize;
         this.fileIndex = 0;
         this.curCount = 0;
+        this.curPosition = 0;
         try {
             termIdWriter = new PrintWriter("term_table" + this.wid + ".txt", "utf-8");
             postingWriter = new PrintWriter("posting-" + this.wid + "-" + this.fileIndex + ".txt", "utf-8");
             lengthWriter = new PrintWriter("page_length-" + this.wid + ".txt", "utf-8");
+            docWriter = new PrintWriter("document" + this.wid + ".txt", "utf-8");
+            docTableWriter = new PrintWriter("doc_table" + this.wid + ".txt", "utf-8");
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -51,19 +57,19 @@ public class Worker extends Thread {
                 continue;
             }
             int docId = p.getDocId();
-            String url = p.getUrl();
-            WarcRecord record = p.getRecord();
+//            String url = p.getUrl();
+//            WarcRecord record = p.getRecord();
             String html = p.getHtml();
             if (html == null) {
                 continue;
             }
 
             System.out.println("processing doc " + docId);
-//            String[] words = html.split("\\W+");
             String[] words = html.split("[\\p{Punct}\\s]+");
             int wordCount = 0;
 
             HashMap<Integer, Integer> freq = new HashMap<>();
+            StringBuilder sb = new StringBuilder();
             for (String w : words) {
                 if (isAscii(w)) {
                     wordCount++;
@@ -73,9 +79,16 @@ public class Worker extends Thread {
                         tid = getTermId(w);
                     }
                     freq.put(tid, freq.getOrDefault(tid, 0) + 1);
+                    sb.append(w + " ");
                 }
             }
 
+            // write html content to document file for snippet generation
+            docWriter.print(sb.toString());
+            docTableWriter.println(docId + "," + wid + "," + curPosition + "," + sb.length());
+            curPosition += sb.length();
+
+            // create postings
             for (Integer ti : freq.keySet()) {
                 res.add(new Posting(ti, docId, freq.get(ti)));
             }

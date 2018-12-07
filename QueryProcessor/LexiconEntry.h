@@ -1,10 +1,9 @@
-#include <string>
-
 #ifndef LEXICONENTRY_H
 #define LEXICONENTRY_H
 
-class LexiconEntry
-{
+#include <string>
+
+class LexiconEntry {
   private:
     int termId;
     int blockPosition;
