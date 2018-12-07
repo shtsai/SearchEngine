@@ -21,7 +21,8 @@ There are four main components of this search engine:
    
 3. [Index Builder](https://github.com/shtsai7/SearchEngine/tree/master/IndexBuilder)
 
-   The index builder takes the output of the Merger and builds inverted lists for the word occurrences. Because the size of inverted lists is large, various compression techniques are used, and reads and writes are done on the byte level.
+   The index builder takes the output of the Merger and builds inverted lists for all the word occurrences. 
+Because the size of inverted lists is large, we use various compression techniques and compress the index by about 90%.
 
 4. [Query Preprocessor](https://github.com/shtsai7/SearchEngine/tree/master/QueryProcessor)
 
