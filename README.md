@@ -9,7 +9,7 @@ There are four main components of this search engine:
 
 1. [Posting Generator](https://github.com/shtsai7/SearchEngine/tree/master/PostingGenerator)
 
-   This component processes the crawled web data (in WARC format), parse the HTML contents, extract useful informations, and generate Postings for every word occurrence. 
+   This component processes the crawled web data (in WARC format), parses the HTML contents, extracts useful informations, and generates Postings for every word occurrence. 
    Since this part is I/O intensive, it is implemented using multithreading. 
    
    Posting Generator is also responsible for building important information such as term table, URL table, etc, which will later be used by the query processor.
