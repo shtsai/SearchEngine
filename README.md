@@ -17,7 +17,7 @@ There are four main components of this search engine:
 2. [Merger](https://github.com/shtsai7/SearchEngine/tree/master/MergeSort)
    
    Since Posting Generator is a multithread process, all the intermediate results are stored as (sorted) files on disks. 
-   The Merger's job is to efficient combine all intermediate results and sorted them in an I/O efficient way.
+   The Merger's job is to efficiently combine all intermediate results and sort them in an I/O efficient way.
    
 3. [Index Builder](https://github.com/shtsai7/SearchEngine/tree/master/IndexBuilder)
 
