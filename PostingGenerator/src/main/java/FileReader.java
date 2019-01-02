@@ -15,6 +15,8 @@ import org.jwat.warc.WarcRecord;
 
 public class FileReader extends Thread {
 
+    private static final String PAGE_TABLE = "run/page_table-";
+
     private ReaderManager rm;
     private List<String> files;
     private int rid;
@@ -32,7 +34,7 @@ public class FileReader extends Thread {
         this.urlMap = rm.getUrlMap();
 
         try {
-            docIdWriter = new PrintWriter("page_table-" + this.rid + ".txt", "utf-8");
+            docIdWriter = new PrintWriter(PAGE_TABLE + this.rid + ".txt", "utf-8");
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -48,6 +50,8 @@ public class FileReader extends Thread {
                 System.out.println("reader " + rid + " reading " + warcFile);
                 InputStream in = new FileInputStream(file);
 
+                System.out.println(in);
+                
                 WarcReader reader = WarcReaderFactory.getReader(in);
                 WarcRecord record;
 

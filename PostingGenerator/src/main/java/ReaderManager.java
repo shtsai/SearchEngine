@@ -9,7 +9,7 @@ public class ReaderManager {
     private int remainingWorker;
     private HashMap<String, Integer> urlMap;
 
-    public ReaderManager(String[] warcFiles, int readerNum) {
+    public ReaderManager(ArrayList<String> warcFiles, int readerNum) {
         queue = new LinkedBlockingQueue<>();
         remainingWorker = readerNum;
         urlMap = new HashMap<>();
@@ -38,14 +38,14 @@ public class ReaderManager {
         remainingWorker--;
     }
 
-    private List<List<String>> divideReads(String[] files, int readerNum) {
+    private List<List<String>> divideReads(ArrayList<String> files, int readerNum) {
         List<List<String>> assignments = new ArrayList<>();
-        for (int i = 0; i < files.length; i++) {
+        for (int i = 0; i < files.size(); i++) {
             int index = i % readerNum;
             if (assignments.size() <= index) {
                 assignments.add(new ArrayList<>());
             }
-            assignments.get(index).add(files[i]);
+            assignments.get(index).add(files.get(i));
         }
         return assignments;
     }

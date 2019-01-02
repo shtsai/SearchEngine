@@ -6,6 +6,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.jwat.warc.WarcRecord;
 
 public class Worker extends Thread {
+    private static final String TERM_TABLE = "run/term_table";
+    private static final String POSTING = "run/posting-";
+    private static final String PAGE_LENGTH = "run/page_length-";
+    private static final String DOCUMENT = "run/document";
+    private static final String DOC_TABLE = "run/doc_table";
+
     public static ConcurrentHashMap<String, Integer> termMap = new ConcurrentHashMap<>();
     private static int termId = 0;
     private PrintWriter termIdWriter;
@@ -32,11 +38,11 @@ public class Worker extends Thread {
         this.curCount = 0;
         this.curPosition = 0;
         try {
-            termIdWriter = new PrintWriter("term_table" + this.wid + ".txt", "utf-8");
-            postingWriter = new PrintWriter("posting-" + this.wid + "-" + this.fileIndex + ".txt", "utf-8");
-            lengthWriter = new PrintWriter("page_length-" + this.wid + ".txt", "utf-8");
-            docWriter = new PrintWriter("document" + this.wid + ".txt", "utf-8");
-            docTableWriter = new PrintWriter("doc_table" + this.wid + ".txt", "utf-8");
+            termIdWriter = new PrintWriter(TERM_TABLE + this.wid + ".txt", "utf-8");
+            postingWriter = new PrintWriter(POSTING + this.wid + "-" + this.fileIndex + ".txt", "utf-8");
+            lengthWriter = new PrintWriter(PAGE_LENGTH + this.wid + ".txt", "utf-8");
+            docWriter = new PrintWriter(DOCUMENT + this.wid + ".txt", "utf-8");
+            docTableWriter = new PrintWriter(DOC_TABLE + this.wid + ".txt", "utf-8");
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -57,8 +63,6 @@ public class Worker extends Thread {
                 continue;
             }
             int docId = p.getDocId();
-//            String url = p.getUrl();
-//            WarcRecord record = p.getRecord();
             String html = p.getHtml();
             if (html == null) {
                 continue;
@@ -103,7 +107,7 @@ public class Worker extends Thread {
                 fileIndex++;
                 postingWriter.close();
                 try {
-                    postingWriter = new PrintWriter("posting-" + this.wid + "-" + this.fileIndex + ".txt", "utf-8");
+                    postingWriter = new PrintWriter(POSTING + this.wid + "-" + this.fileIndex + ".txt", "utf-8");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
