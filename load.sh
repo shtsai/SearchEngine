@@ -1,15 +1,17 @@
 #!/bin/bash
 
-# Posting Generator
-# cd PostingGenerator
-# mvn package
-# cd ..
-#
-# java -cp PostingGenerator/PostingGenerator.jar PostingGenerator
+mkdir run
 
-# cd run
-# ../MergeSort/merge.sh
-# cd ..
+# Posting Generator
+cd PostingGenerator
+mvn package
+cd ..
+
+java -cp PostingGenerator/PostingGenerator.jar PostingGenerator
+
+cd run
+../MergeSort/merge.sh
+cd ..
 
 cd IndexBuilder
 ./compile.sh
