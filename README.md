@@ -32,6 +32,36 @@ Because the size of inverted lists is large, we use various compression techniqu
    
 Checkout the README files in each subdirectorie for further details.
 
+## To Run This Search Engine
+
+There are three main steps:
+
+1. Download crawled WARC files
+
+   You can use the Python script download_pages.py to download WARC files. The downloaded pages will be stored under pages/ directory.
+   
+   The last argument specify how many WARC files you want to download. The default value 10 will be used if this argument is not specified.
+   ```
+   python download_pages.py 50
+   ```
+
+2. Build inverted index
+   
+   You can use the load.sh script to build inverted index. All the inverted index files and all intermediate files will be stored under run/ directory.
+   
+   This step can take up to several hours depending on your machine and the number of WARC files you have.
+   
+   ```
+   ./load.sh
+   ```
+   
+3. Use the search engine
+
+   You can use the run.sh script. It will take a couple seconds for the search engine to load up. Then you can enter your query terms and the search engine will return to you the top 20 results.
+   ```
+   ./run.sh
+   ```
+
 ## Authors
 
 * **Shang-Hung Tsai**
